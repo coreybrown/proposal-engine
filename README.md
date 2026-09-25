@@ -97,7 +97,7 @@ There is no application code here. The whole pipeline is built from Claude Code'
 | Piece | Where | What it is |
 |---|---|---|
 | **The skill** | [`.claude/skills/propose/`](.claude/skills/propose/) | A [project skill](https://code.claude.com/docs/en/skills). Typing `/propose` loads `SKILL.md` into your main Claude Code session, which becomes the **orchestrator**. `new-product.md` sits beside it and holds the new-product stages. |
-| **The agents** | [`.claude/agents/*.md`](.claude/agents/) | 27 [subagents](https://code.claude.com/docs/en/sub-agents). Each is a Markdown file: YAML frontmatter (`name`, `description`, `tools`, `model`) plus a system prompt with a **Rubric**, **Kill conditions** and an output contract. |
+| **The agents** | [`.claude/agents/*.md`](.claude/agents/) | <!-- auto:agents_total -->27<!-- /auto --> [subagents](https://code.claude.com/docs/en/sub-agents). Each is a Markdown file: YAML frontmatter (`name`, `description`, `tools`, `model`) plus a system prompt with a **Rubric**, **Kill conditions** and an output contract. |
 | **The contracts** | [`docs/`](docs/) | Shared rules every agent reads: the risk format ([`risk-contract.md`](docs/risk-contract.md)), number integrity ([`new-product-contract.md`](docs/new-product-contract.md)) and build-effort estimating ([`estimating.md`](docs/estimating.md)). |
 | **The team profile** | [`docs/team/`](docs/team/) | Optional. Describe your real delivery team, and the estimating agents use it instead of defaults. It ships empty. |
 | **The scripts** | [`scripts/`](scripts/) | `digest.py` checks each agent's file against the contract and builds the digest later stages read. `extract_sources.py` turns uploaded documents into text. The orchestrator runs both, not the agents. |
@@ -118,7 +118,8 @@ There is no application code here. The whole pipeline is built from Claude Code'
 
 ### Stages and agents
 
-**Existing product (15 agents)**
+**Existing product (<!-- auto:feature_agents -->15<!-- /auto --> agents)**
+<!-- table:feature -->
 
 | Stage | Agents | Output |
 |---|---|---|
@@ -128,7 +129,8 @@ There is no application code here. The whole pipeline is built from Claude Code'
 | 4. Risk sweep | business-viability, legal-compliance, accessibility, ethics-trust-safety, privacy-security, operational-readiness | Findings + flagged risks |
 | 5. Synthesis | synthesizer | Risk register + one-page verdict |
 
-**New product (12 agents + 2 scripts)**
+**New product (<!-- auto:new_product_agents -->12<!-- /auto --> agents + 2 scripts)**
+<!-- table:new-product -->
 
 | Stage | Agents | Output |
 |---|---|---|
@@ -156,7 +158,7 @@ Every agent reports risks in the shared format in [`docs/risk-contract.md`](docs
 |---|---|---|
 | New product, full (Stages 1–5) | about **$22**, plus about $1.50 in web searches | 13 subagent calls |
 | New product, early exit after Stage 2 | less; not measured separately | Stages 3–4 are skipped. The example run is one. |
-| Existing product (feature mode) | about **$45–58** | 15 agents; 7 of them run on Opus, and the prototype is large |
+| Existing product (feature mode) | about **$45–58** | Measured with 7 of the 15 agents on Opus; the prototype is large |
 
 Treat these as a rough guide: model prices change, and so does the length of what agents write. Measure your own first run.
 
@@ -173,7 +175,7 @@ Most of the cost comes from which model each agent runs on, so that's the first 
 | Lever | How | Effect | Trade-off |
 |---|---|---|---|
 | **1. Run everything on Sonnet** | `export ANTHROPIC_DEFAULT_OPUS_MODEL=claude-sonnet-5` before starting Claude Code. Every agent with `model: opus` then resolves to Sonnet, with no file edits. | The biggest cut, largest in feature mode | **Untested; check the outputs** (see the note above). The synthesizers, the prototyper and the unit-economics auditor do the hardest judgment work, so they're the most likely to lose quality. |
-| **2. Move selected agents to Sonnet** | Change `model: opus` to `model: sonnet` in individual `.claude/agents/*.md` files. The 12 Opus agents are listed below. | A partial cut, at your choosing | A middle path: keep the synthesizers on Opus and move the framers and writers first. **Also untested; check the outputs.** |
+| **2. Move selected agents to Sonnet** | Change `model: opus` to `model: sonnet` in individual `.claude/agents/*.md` files. The <!-- auto:opus_count -->12<!-- /auto --> Opus agents are listed below. | A partial cut, at your choosing | A middle path: keep the synthesizers on Opus and move the framers and writers first. **Also untested; check the outputs.** |
 | **3. Take the early exit** | When a Stage 2 agent fires a kill, choose "stop" when asked | Skips the business case and all four audits | No business case, economics audit or fact check. The verdict can only be Pass or Validate first. |
 | **4. Choose the mode deliberately** | New-product mode costs about half as much as feature mode | Roughly halves the cost | A different product: no demo or specs |
 | **5. Skip the optional stage** | Stage 6 (smoke test) only runs if you ask | Avoids one agent call | None |
@@ -182,8 +184,10 @@ Most of the cost comes from which model each agent runs on, so that's the first 
 | **8. Orchestrate on a cheaper model** | Set the main session's model with `/model`. Orchestration is light routing, and subagents keep their own `model:`. | Small | Minimal |
 
 **Which agents run on which model** (the `model:` line in each agent file):
-- **Opus (12):** opportunity-framer, build-cost-analyst, venture-strategist, unit-economics-auditor, new-product-synthesizer, product-analyst, design-language-analyst, product-manager, product-designer, prototyper, tech-architect, synthesizer
-- **Sonnet (15):** all the research, risk and audit agents, plus smoke-test-builder
+<!-- auto:model-list -->
+- **Opus (12):** build-cost-analyst, design-language-analyst, new-product-synthesizer, opportunity-framer, product-analyst, product-designer, product-manager, prototyper, synthesizer, tech-architect, unit-economics-auditor, venture-strategist
+- **Sonnet (15):** accessibility, business-viability, competitive-researcher, competitive-strategist, ethics-trust-safety, fact-checker, gtm-researcher, legal-compliance, market-sizer, operational-readiness, privacy-security, problem-validator, regulatory-scout, smoke-test-builder, user-researcher
+<!-- /auto:model-list -->
 
 **How model selection works.** For each subagent call, Claude Code applies the first of these that is set ([subagent docs](https://code.claude.com/docs/en/sub-agents)):
 1. a model named in the orchestrator's call
@@ -201,7 +205,7 @@ Claude Code can send its requests to a different endpoint, so you can run this p
 
 - **Anthropic doesn't support non-Claude models in Claude Code.** Routing through a gateway is documented ([LLM gateways](https://code.claude.com/docs/en/llm-gateway-connect)). Sending Claude Code's requests to non-Claude models isn't supported, and tool use may be unreliable.
 - **Web search will probably stop working.** `WebSearch` is an Anthropic server-side tool. It isn't available on Amazon Bedrock, and through a third-party gateway it only works if the gateway implements Anthropic's web-search API. Without it:
-  - 17 of the 27 agents lose their main way of finding evidence. `WebFetch` still works, but only on URLs the agent already knows.
+  - <!-- auto:websearch_count -->17<!-- /auto --> of the <!-- auto:agents_total -->27<!-- /auto --> agents lose their main way of finding evidence. `WebFetch` still works, but only on URLs the agent already knows.
   - Under the number-integrity rules, unfound evidence becomes `unknown`. Verdicts get weaker, not wrong, but they will be much less useful.
   - **Workaround:** add a search tool through an [MCP server](https://code.claude.com/docs/en/mcp), and add its tool name (`mcp__<server>__<tool>`) to the `tools:` line of each research agent. Some gateways, such as LiteLLM, can also intercept web search themselves.
 - **Smaller models struggle with the contracts.** The pipeline relies on agents following long, strict output formats: YAML figures, labelled numbers and risk blocks. Expect more failed stage checks. The one retry per agent won't always rescue them.
