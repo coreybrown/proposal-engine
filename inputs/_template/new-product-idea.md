@@ -10,7 +10,7 @@ mode: new-product
 <!-- What's the product, who is it for, and what problem does it solve? Name who has the problem as specifically as you can: "independent roofers running 2–10 crews" beats "small businesses". -->
 
 ## Who would build it (optional)
-<!-- e.g. "me, solo, nights and weekends", "Quartermaster, as a second product line", "seed-funded team of four". Leave blank and the run assumes a solo builder with no audience and no capital (the conservative case). -->
+<!-- e.g. "me, solo, nights and weekends", "a mid-size accounting-software company, as a second product line", "seed-funded team of four". Leave blank and the run assumes a solo builder with no audience and no capital (the conservative case). -->
 
 - Company URL:
 
