@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>New Proposal — Proposal Engine</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --border: #e2e5ea;
+    --text: #1a1d23;
+    --text-2: #5b6270;
+    --text-3: #8a91a0;
+    --accent: #2f5fe0;
+    --accent-soft: #eaf0fe;
+    --danger: #c93b3b;
+    --ok: #1e8e5a;
+    --radius: 10px;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a;
+      --surface: #1d2026;
+      --border: #2e323b;
+      --text: #e8eaee;
+      --text-2: #9aa1af;
+      --text-3: #6b7280;
+      --accent: #6b93f5;
+      --accent-soft: #232c42;
+      --danger: #e06c6c;
+      --ok: #4cc38a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+  }
+  header { margin-bottom: 20px; }
+  header h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--text-2); font-size: 14px; }
+
+  /* mode toggle */
+  .mode {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    max-width: 640px;
+    margin: 0 0 24px;
+    padding: 0;
+    border: 0;
+  }
+  .mode legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .mode-opt {
+    position: relative;
+    display: block;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: border-color .12s, background .12s;
+  }
+  .mode-opt input { position: absolute; opacity: 0; pointer-events: none; }
+  .mode-opt b { display: block; font-size: 14px; }
+  .mode-opt small { display: block; font-size: 12px; color: var(--text-2); margin-top: 2px; }
+  .mode-opt:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .mode-opt:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (max-width: 520px) { .mode { grid-template-columns: 1fr; } }
+
+  .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); gap: 24px; align-items: start; }
+  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 18px;
+  }
+  .card[hidden] { display: none; }
+  .card h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-3);
+    margin: 0 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .badge {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 2px 7px;
+    border-radius: 99px;
+    text-transform: uppercase;
+  }
+  .badge.req { background: var(--accent-soft); color: var(--accent); }
+  .badge.opt { background: transparent; color: var(--text-3); border: 1px solid var(--border); }
+
+  label { display: block; font-size: 13px; font-weight: 600; margin: 14px 0 5px; }
+  label:first-of-type { margin-top: 0; }
+  .hint { font-weight: 400; color: var(--text-3); font-size: 12px; margin-left: 6px; }
+  input[type="text"], input[type="url"], textarea {
+    width: 100%;
+    font: inherit;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 9px 11px;
+    outline: none;
+    transition: border-color .12s;
+  }
+  input:focus, textarea:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 72px; }
+  textarea.tall { min-height: 120px; }
+  .field-note { font-size: 12px; color: var(--text-3); margin-top: 4px; }
+  .field-note.reject { color: var(--danger); }
+  .field-note:empty { display: none; }
+
+  /* screenshots and documents */
+  .drop {
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 26px 16px;
+    text-align: center;
+    color: var(--text-2);
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color .12s, background .12s;
+  }
+  .drop.over { border-color: var(--accent); background: var(--accent-soft); }
+  .drop strong { color: var(--accent); }
+  .drop:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-top: 12px; }
+  .shot {
+    position: relative;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg);
+  }
+  .shot img { width: 100%; height: 78px; object-fit: cover; display: block; }
+  .shot .ext {
+    height: 78px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-2);
+  }
+  .shot .name {
+    font-size: 10px;
+    font-family: var(--mono);
+    padding: 4px 6px;
+    color: var(--text-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .shot button {
+    position: absolute; top: 4px; right: 4px;
+    width: 20px; height: 20px;
+    border: none; border-radius: 50%;
+    background: rgba(0,0,0,.62); color: #fff;
+    font-size: 12px; line-height: 1;
+    cursor: pointer;
+  }
+
+  /* preview + actions */
+  .sticky { position: sticky; top: 24px; }
+  .slugline {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-2);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 8px 11px;
+    margin-bottom: 14px;
+    overflow-wrap: anywhere;
+  }
+  .slugline b { color: var(--accent); font-weight: 600; }
+  pre#preview {
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.55;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 14px;
+    max-height: 46vh;
+    overflow: auto;
+    white-space: pre-wrap;
+    margin: 0 0 16px;
+    color: var(--text-2);
+  }
+  .actions { display: flex; flex-direction: column; gap: 8px; }
+  button.btn {
+    font: inherit; font-size: 14px; font-weight: 600;
+    padding: 11px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    transition: filter .12s;
+  }
+  button.btn:hover { filter: brightness(0.97); }
+  button.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.btn:disabled { opacity: .45; cursor: not-allowed; }
+  #status { font-size: 13px; min-height: 20px; margin-top: 10px; }
+  #status.ok { color: var(--ok); }
+  #status.err { color: var(--danger); }
+  .warn {
+    font-size: 12.5px;
+    color: var(--text-2);
+    background: var(--accent-soft);
+    border-radius: 7px;
+    padding: 9px 12px;
+    margin-bottom: 12px;
+    display: none;
+  }
+  .warn.show { display: block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>New proposal input</h1>
+    <p id="intro"></p>
+  </header>
+
+  <fieldset class="mode">
+    <legend>What are you assessing?</legend>
+    <label class="mode-opt">
+      <input type="radio" name="mode" value="feature" checked>
+      <b>Existing product</b>
+      <small>A feature or improvement to a product that already exists</small>
+    </label>
+    <label class="mode-opt">
+      <input type="radio" name="mode" value="product">
+      <b>New product</b>
+      <small>A net-new product idea: is it worth building?</small>
+    </label>
+  </fieldset>
+
+  <div class="cols">
+    <div><!-- left column: form -->
+
+      <div class="card">
+        <h2>Run name <span class="badge opt">optional</span></h2>
+        <label for="runName">Short name for this run <span class="hint">used for the folder name; auto-derived if blank</span></label>
+        <input type="text" id="runName" placeholder="e.g. Strava route stories">
+      </div>
+
+      <div class="card">
+        <h2>The idea <span class="badge req">required</span></h2>
+        <label for="idea" id="ideaLabel"></label>
+        <textarea id="idea" class="tall"></textarea>
+      </div>
+
+      <div class="card" data-mode="feature">
+        <h2>Target product <span class="badge req">required</span></h2>
+        <label for="productName">Product name</label>
+        <input type="text" id="productName" placeholder="e.g. Strava">
+        <label for="productUrl">URL <span class="hint">the context agents will fetch this</span></label>
+        <input type="url" id="productUrl" placeholder="https://…">
+        <div class="field-note">Provide a URL, screenshots below, or both. If the interesting parts are behind a login, screenshots are what the design-language agent will rely on.</div>
+      </div>
+
+      <div class="card" data-mode="feature">
+        <h2>Screenshots <span class="badge opt">optional</span></h2>
+        <div class="drop" id="drop" tabindex="0" role="button" aria-label="Add screenshots">
+          Drag &amp; drop images here, or <strong>click to choose</strong>
+          <input type="file" id="filePicker" accept="image/*" multiple hidden>
+        </div>
+        <div class="shots" id="shots"></div>
+      </div>
+
+      <div class="card" data-mode="product" hidden>
+        <h2>Who would build it <span class="badge opt">optional</span></h2>
+        <label for="builder">Who would build and run this?</label>
+        <textarea id="builder" placeholder="e.g. &quot;me, solo, nights and weekends&quot;, &quot;Quartermaster, as a second product line&quot;, &quot;seed-funded team of four&quot;"></textarea>
+        <div class="field-note">Leave blank and the run assumes a solo builder with no audience and no capital (the conservative case).</div>
+        <label for="builderUrl">Company URL <span class="hint">if an existing company would build it</span></label>
+        <input type="url" id="builderUrl" placeholder="https://…">
+      </div>
+
+      <div class="card" data-mode="product" hidden>
+        <h2>Supporting documents <span class="badge opt">optional</span></h2>
+        <div class="drop" id="docDrop" tabindex="0" role="button" aria-label="Add supporting documents">
+          Drag &amp; drop files here, or <strong>click to choose</strong>
+          <input type="file" id="docPicker" multiple hidden>
+        </div>
+        <div class="field-note">PDF, Word, PowerPoint, Excel, CSV, Markdown, text or images. The run treats everything in them as claims to verify, not facts.</div>
+        <div class="field-note reject" id="docNote" role="status" aria-live="polite"></div>
+        <div class="shots" id="docs"></div>
+      </div>
+
+      <div class="card" data-mode="product" hidden>
+        <h2>Questions to answer <span class="badge opt">optional</span></h2>
+        <label for="questions">What do you most want answered?</label>
+        <textarea id="questions" placeholder="One per line works best. e.g. &quot;Would anyone pay $20 a month for this?&quot;"></textarea>
+        <div class="field-note">Each question goes to the agent best placed to answer it, and the summary answers every one.</div>
+      </div>
+
+      <div class="card">
+        <h2>Why now <span class="badge opt">optional</span></h2>
+        <label for="whyNow">What prompted this idea?</label>
+        <textarea id="whyNow" placeholder="A user complaint, a competitor move, a strategy shift… leave blank if it's just a hunch."></textarea>
+      </div>
+
+      <div class="card">
+        <h2>Constraints <span class="badge opt">optional</span></h2>
+        <label for="constraints">Anything the pipeline should respect</label>
+        <textarea id="constraints"></textarea>
+      </div>
+
+    </div>
+
+    <div><!-- right column: preview + actions -->
+      <div class="sticky">
+        <div class="card">
+          <h2>Generated run</h2>
+          <div class="slugline">inputs/<b id="slugOut">…</b>/idea.md</div>
+          <div class="warn" id="noContextWarn">⚠︎ No URL and no screenshots — the context agents will have nothing to analyze. Add at least one.</div>
+          <pre id="preview"></pre>
+          <div class="actions">
+            <button class="btn primary" id="saveBtn">Save run folder…</button>
+            <button class="btn" id="downloadBtn">Download idea.md</button>
+            <button class="btn" id="copyBtn">Copy markdown</button>
+          </div>
+          <div id="status" role="status" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const fields = ['runName', 'idea', 'productName', 'productUrl', 'whyNow', 'constraints', 'builder', 'builderUrl', 'questions'];
+  let screenshots = []; // {file, url}
+  let materials = [];   // {file, name, url}
+  let mode = 'feature'; // 'feature' | 'product'
+
+  const COPY = {
+    feature: {
+      intro: 'Fill in as much or as little as you have — only the idea and the product are required. This generates the run folder the <code>/propose</code> pipeline consumes.',
+      ideaLabel: 'What is the feature? What does a user do with it?',
+      ideaPlaceholder: '2–6 sentences is plenty, but write as much as you want — a napkin sketch in words or a full concept brief both work.',
+      constraints: "Platform limits, audience to focus on, 'must not touch X', budget ceilings…"
+    },
+    product: {
+      intro: 'Only the idea is required. Add documents if you have them. This generates the run folder the <code>/propose</code> pipeline consumes.',
+      ideaLabel: "What's the product, who is it for, and what problem does it solve?",
+      ideaPlaceholder: "A few sentences is enough. Name who has the problem as specifically as you can: 'independent roofers running 2–10 crews' beats 'small businesses'.",
+      constraints: "Budget ceiling, markets you will or won't enter, timeline, how much of your time it can take…"
+    }
+  };
+
+  // Supporting documents: what the extraction step can read, and what needs a PDF export first.
+  const DOC_EXTS = ['pdf', 'docx', 'doc', 'rtf', 'odt', 'pptx', 'xlsx', 'xlsm', 'csv', 'tsv', 'md', 'markdown',
+                    'txt', 'json', 'html', 'htm', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'heif'];
+  const EXPORT_EXTS = ['ppt', 'xls', 'key', 'pages', 'numbers'];
+  const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
+  const extOf = name => (name.includes('.') ? name.split('.').pop().toLowerCase() : '');
+
+  // ---------- slug ----------
+  function slugify(s) {
+    return s.toLowerCase().trim()
+      .replace(/['’]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 48).replace(/-+$/, '');
+  }
+  function currentSlug() {
+    const name = $('runName').value.trim();
+    if (name) return slugify(name);
+    if (mode === 'product') {
+      return slugify($('idea').value.trim().split(/\s+/).slice(0, 6).join(' ')) || 'untitled-run';
+    }
+    const product = $('productName').value.trim();
+    const ideaWords = $('idea').value.trim().split(/\s+/).slice(0, 5).join(' ');
+    const base = [product, ideaWords].filter(Boolean).join(' ');
+    return slugify(base) || 'untitled-run';
+  }
+
+  // ---------- markdown ----------
+  function buildMarkdown() {
+    return mode === 'product' ? buildProductMarkdown() : buildFeatureMarkdown();
+  }
+
+  // Feature mode: output must stay byte-identical to the original form.
+  function buildFeatureMarkdown() {
+    const idea = $('idea').value.trim();
+    const product = $('productName').value.trim();
+    const url = $('productUrl').value.trim();
+    const whyNow = $('whyNow').value.trim();
+    const constraints = $('constraints').value.trim();
+
+    let md = '# Feature idea\n\n';
+    md += '## The idea (required)\n' + (idea || '<!-- not provided yet -->') + '\n\n';
+    md += '## Target product (required)\n';
+    md += '- Product: ' + (product || '') + '\n';
+    md += '- URL: ' + (url || (screenshots.length ? '(none — see screenshots/)' : '')) + '\n';
+    if (screenshots.length) {
+      md += '- Screenshots: ' + screenshots.length + ' file(s) in ./screenshots/\n';
+    }
+    if (whyNow) md += '\n## Why now (optional)\n' + whyNow + '\n';
+    if (constraints) md += '\n## Constraints (optional)\n' + constraints + '\n';
+    return md.replace(/\n{3,}/g, '\n\n').trimEnd() + '\n';
+  }
+
+  function buildProductMarkdown() {
+    const idea = $('idea').value.trim();
+    const builder = $('builder').value.trim();
+    const builderUrl = $('builderUrl').value.trim();
+    const questions = $('questions').value.trim();
+    const whyNow = $('whyNow').value.trim();
+    const constraints = $('constraints').value.trim();
+
+    let md = '---\nmode: new-product\n---\n\n# Product idea\n\n';
+    md += '## The idea (required)\n' + (idea || '<!-- not provided yet -->') + '\n\n';
+    if (builder || builderUrl) {
+      md += '## Who would build it (optional)\n';
+      if (builder) md += builder + '\n';
+      if (builderUrl) md += (builder ? '\n' : '') + '- Company URL: ' + builderUrl + '\n';
+      md += '\n';
+    }
+    if (materials.length) {
+      md += '## Supporting documents (optional)\n';
+      md += materials.length + ' file(s) in ./materials/:\n';
+      materials.forEach(m => { md += '- ' + m.name + '\n'; });
+      md += '\n';
+    }
+    if (questions) md += '## Questions to answer (optional)\n' + questions + '\n\n';
+    if (whyNow) md += '## Why now (optional)\n' + whyNow + '\n\n';
+    if (constraints) md += '## Constraints (optional)\n' + constraints + '\n\n';
+    return md.replace(/\n{3,}/g, '\n\n').trimEnd() + '\n';
+  }
+
+  // ---------- validation ----------
+  function validate() {
+    const problems = [];
+    if (!$('idea').value.trim()) problems.push('The idea is required.');
+    if (mode === 'feature' && !$('productName').value.trim()) problems.push('Product name is required.');
+    return problems;
+  }
+
+  // ---------- render ----------
+  function applyMode() {
+    const copy = COPY[mode];
+    $('intro').innerHTML = copy.intro; // static copy only, never user input
+    $('ideaLabel').textContent = copy.ideaLabel;
+    $('idea').placeholder = copy.ideaPlaceholder;
+    $('constraints').placeholder = copy.constraints;
+    document.querySelectorAll('[data-mode]').forEach(el => { el.hidden = el.dataset.mode !== mode; });
+    document.querySelectorAll('input[name="mode"]').forEach(r => { r.checked = r.value === mode; });
+  }
+  function render() {
+    $('slugOut').textContent = currentSlug();
+    $('preview').textContent = buildMarkdown();
+    const noContext = mode === 'feature' && !$('productUrl').value.trim() && screenshots.length === 0;
+    $('noContextWarn').classList.toggle('show', noContext);
+  }
+  fields.forEach(id => $(id).addEventListener('input', render));
+  document.querySelectorAll('input[name="mode"]').forEach(radio => radio.addEventListener('change', () => {
+    mode = radio.value;
+    try { localStorage.setItem('oe-intake-mode', mode); } catch (e) { /* storage unavailable */ }
+    status('');
+    applyMode();
+    render();
+  }));
+
+  // ---------- drop zones ----------
+  function wireDrop(zone, picker, onFiles) {
+    zone.addEventListener('click', () => picker.click());
+    zone.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); picker.click(); }
+    });
+    picker.addEventListener('change', () => onFiles(picker.files));
+    ['dragover', 'dragenter'].forEach(ev => zone.addEventListener(ev, e => {
+      e.preventDefault(); zone.classList.add('over');
+    }));
+    ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, e => {
+      e.preventDefault(); zone.classList.remove('over');
+    }));
+    zone.addEventListener('drop', e => onFiles(e.dataTransfer.files));
+  }
+
+  // ---------- screenshots (existing product) ----------
+  const picker = $('filePicker');
+  wireDrop($('drop'), picker, addFiles);
+
+  function addFiles(fileList) {
+    const skipped = [];
+    for (const file of fileList) {
+      if (!file.type.startsWith('image/')) { skipped.push(file.name); continue; }
+      if (screenshots.some(s => s.file.name === file.name && s.file.size === file.size)) continue;
+      screenshots.push({ file, url: URL.createObjectURL(file) });
+    }
+    picker.value = '';
+    renderShots();
+    render();
+    if (skipped.length) status('Not added (screenshots must be images): ' + skipped.join(', '), 'err');
+  }
+  function renderShots() {
+    const box = $('shots');
+    box.innerHTML = '';
+    screenshots.forEach((s, i) => {
+      const div = document.createElement('div');
+      div.className = 'shot';
+      const img = document.createElement('img');
+      img.src = s.url; img.alt = s.file.name;
+      const name = document.createElement('div');
+      name.className = 'name'; name.textContent = s.file.name;
+      const rm = document.createElement('button');
+      rm.textContent = '×'; rm.title = 'Remove'; rm.setAttribute('aria-label', 'Remove ' + s.file.name);
+      rm.addEventListener('click', () => {
+        URL.revokeObjectURL(s.url);
+        screenshots.splice(i, 1);
+        renderShots(); render();
+      });
+      div.append(img, name, rm);
+      box.append(div);
+    });
+  }
+
+  // ---------- supporting documents (new product) ----------
+  const docPicker = $('docPicker');
+  docPicker.accept = DOC_EXTS.map(e => '.' + e).join(',');
+  wireDrop($('docDrop'), docPicker, addDocs);
+
+  function uniqueName(name) {
+    if (!materials.some(m => m.name === name)) return name;
+    const dot = name.lastIndexOf('.');
+    const stem = dot > 0 ? name.slice(0, dot) : name;
+    const ext = dot > 0 ? name.slice(dot) : '';
+    let n = 2;
+    while (materials.some(m => m.name === `${stem}-${n}${ext}`)) n++;
+    return `${stem}-${n}${ext}`;
+  }
+  function addDocs(fileList) {
+    const rejected = [];
+    for (const file of fileList) {
+      const ext = extOf(file.name);
+      if (EXPORT_EXTS.includes(ext)) { rejected.push(`${file.name} (export it to PDF first)`); continue; }
+      if (!DOC_EXTS.includes(ext)) { rejected.push(`${file.name} (unsupported type)`); continue; }
+      if (materials.some(m => m.file.name === file.name && m.file.size === file.size)) continue;
+      const url = IMAGE_EXTS.includes(ext) ? URL.createObjectURL(file) : null;
+      materials.push({ file, name: uniqueName(file.name), url });
+    }
+    docPicker.value = '';
+    renderDocs();
+    render();
+    $('docNote').textContent = rejected.length ? 'Not added: ' + rejected.join(', ') : '';
+    if (rejected.length) status('Not added: ' + rejected.join(', '), 'err');
+  }
+  function renderDocs() {
+    const box = $('docs');
+    box.innerHTML = '';
+    materials.forEach((m, i) => {
+      const div = document.createElement('div');
+      div.className = 'shot';
+      if (m.url) {
+        const img = document.createElement('img');
+        img.src = m.url; img.alt = m.name;
+        div.append(img);
+      } else {
+        const ext = document.createElement('div');
+        ext.className = 'ext'; ext.textContent = extOf(m.name) || 'file';
+        ext.setAttribute('aria-hidden', 'true');
+        div.append(ext);
+      }
+      const name = document.createElement('div');
+      name.className = 'name'; name.textContent = m.name; name.title = m.name;
+      const rm = document.createElement('button');
+      rm.textContent = '×'; rm.title = 'Remove'; rm.setAttribute('aria-label', 'Remove ' + m.name);
+      rm.addEventListener('click', () => {
+        if (m.url) URL.revokeObjectURL(m.url);
+        materials.splice(i, 1);
+        renderDocs(); render();
+      });
+      div.append(name, rm);
+      box.append(div);
+    });
+  }
+
+  // ---------- status ----------
+  function status(msg, kind) {
+    const el = $('status');
+    el.textContent = msg;
+    el.className = kind || '';
+  }
+
+  // ---------- save via File System Access API ----------
+  const fsSupported = 'showDirectoryPicker' in window;
+  if (!fsSupported) {
+    $('saveBtn').disabled = true;
+    $('saveBtn').title = 'Requires Chrome or Edge — use Download instead';
+  }
+  async function writeFile(dir, name, data) {
+    const handle = await dir.getFileHandle(name, { create: true });
+    const w = await handle.createWritable();
+    await w.write(data);
+    await w.close();
+  }
+  $('saveBtn').addEventListener('click', async () => {
+    const problems = validate();
+    if (problems.length) return status(problems.join(' '), 'err');
+    try {
+      status('Pick the inputs/ folder…');
+      const root = await window.showDirectoryPicker({ mode: 'readwrite' });
+      if (root.name !== 'inputs' &&
+          !confirm(`You picked "${root.name}", not "inputs". Save the run folder there anyway?`)) {
+        return status('Nothing saved.');
+      }
+      const slug = currentSlug();
+      let exists = false;
+      try { await root.getDirectoryHandle(slug); exists = true; } catch (e) { /* not there yet */ }
+      if (exists && !confirm(`${root.name}/${slug}/ already exists. Overwrite its idea.md and add these files to it?`)) {
+        return status('Nothing saved. Change the run name to save a new folder.');
+      }
+      const runDir = await root.getDirectoryHandle(slug, { create: true });
+      await writeFile(runDir, 'idea.md', buildMarkdown());
+
+      let note = '';
+      if (mode === 'feature' && screenshots.length) {
+        const shotsDir = await runDir.getDirectoryHandle('screenshots', { create: true });
+        for (const s of screenshots) await writeFile(shotsDir, s.file.name, s.file);
+        note = ` + ${screenshots.length} screenshot(s)`;
+      }
+      if (mode === 'product' && materials.length) {
+        const docsDir = await runDir.getDirectoryHandle('materials', { create: true });
+        for (const m of materials) await writeFile(docsDir, m.name, m.file);
+        note = ` + ${materials.length} document(s)`;
+      }
+      status(`Saved ${slug}/idea.md${note}. Run: /propose inputs/${slug}`, 'ok');
+    } catch (err) {
+      if (err.name === 'AbortError') return status('');
+      status('Save failed: ' + err.message, 'err');
+    }
+  });
+
+  // ---------- download fallback ----------
+  $('downloadBtn').addEventListener('click', () => {
+    const problems = validate();
+    if (problems.length) return status(problems.join(' '), 'err');
+    const blob = new Blob([buildMarkdown()], { type: 'text/markdown' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'idea.md';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    const slug = currentSlug();
+    let note = ` Place it in inputs/${slug}/.`;
+    if (mode === 'feature' && screenshots.length) {
+      note = ` Place it in inputs/${slug}/ and copy your ${screenshots.length} screenshot(s) into inputs/${slug}/screenshots/ yourself.`;
+    }
+    if (mode === 'product' && materials.length) {
+      note = ` Place it in inputs/${slug}/ and copy your ${materials.length} document(s) into inputs/${slug}/materials/ yourself.`;
+    }
+    status('Downloaded idea.md.' + note, 'ok');
+  });
+
+  // ---------- copy ----------
+  $('copyBtn').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(buildMarkdown());
+      status('Markdown copied.', 'ok');
+    } catch {
+      status('Copy failed — select the preview text manually.', 'err');
+    }
+  });
+
+  try {
+    const saved = localStorage.getItem('oe-intake-mode');
+    if (saved === 'feature' || saved === 'product') mode = saved;
+  } catch (e) { /* storage unavailable */ }
+  applyMode();
+  render();
+})();
+</script>
+</body>
+</html>

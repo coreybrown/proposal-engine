@@ -1,0 +1,5 @@
+# Clarifications from the decision-maker
+
+Added 2026-09-25, after the early-exit synthesis. The user's own words, verbatim:
+
+> Interesting.... I figured the biggest actual risk here is the fact that you can't get watch history automatically. Like everything requires a user to interact with it, which I think is just a big barrier of friction for somebody to use this, right? Like the fact that you watch something and have to go back to an app to update it is um, a pain in the ass, given that the systems themselves keep track of what you watched and recommend uh, things on the same system. So um, I thought that this was going to be killed based on the fact that unless you have a way to ingest all your streaming watch history and what you um and to be able to build the recommendations and what you've already watched um the use the user actual uh problem is not really being solved it's just being transferred to another place to yes solve a problem but the the barrier to entry would be too big i figured that would be the risk that was highlighted um i'm curious why it didn't come back with that

@@ -1,0 +1,14 @@
+.DS_Store
+**/.claude/settings.local.json
+__pycache__/
+.env
+.env.*
+
+# Your runs stay local by default, so a public fork never publishes them by accident.
+# Delete these lines (or add exceptions) if you want to commit your own runs.
+/inputs/*
+!/inputs/_template/
+!/inputs/new-proposal.html
+!/inputs/next-on-wembley/
+/proposals/*
+!/proposals/next-on-wembley/

@@ -1,0 +1,8 @@
+# Required: scripts/digest.py (stage checks and the new-product digest)
+pyyaml>=6.0
+
+# Optional: scripts/extract_sources.py (new-product runs with uploaded documents)
+pypdf>=4.0
+python-docx>=1.1
+python-pptx>=0.6
+openpyxl>=3.1
